@@ -18,12 +18,12 @@ import com.dnt.tds_java_task.customexceptions.VehicleNotFoundException;
 import com.dnt.tds_java_task.models.ParkedCar;
 import com.dnt.tds_java_task.models.ParkingResponse;
 import com.dnt.tds_java_task.models.ParkingSpacesStatusResponse;
-import com.dnt.tds_java_task.service.CarParkService;
+import com.dnt.tds_java_task.service.CarParkServiceInterface;
 
 @RestController
 public class ParkingController {
     @Autowired
-    private CarParkService carParkService;
+    private CarParkServiceInterface carParkService;
 
     @PutMapping("/reset")
     public ResponseEntity<?> resetCarPark() {
@@ -32,8 +32,8 @@ public class ParkingController {
     }
 
     @PutMapping("/reset/{numberOfSpaces}")
-    public ResponseEntity<?> resetCarParkAssigningNumberOfSpacesByPassedInValue(
-            @PathVariable("numberOfSpaces") int numberOfSpaces) throws RequiredValuesNotPassedInException {
+    public ResponseEntity<?> resetCarParkAssigningNumberOfSpacesByPassedInValue( @PathVariable("numberOfSpaces") int numberOfSpaces)
+            throws RequiredValuesNotPassedInException {
         carParkService.resetCarPark(numberOfSpaces);
         return ResponseEntity.ok("Car Park reset to empty and number of parking spaces is set to : " + numberOfSpaces);
     }
@@ -60,8 +60,7 @@ public class ParkingController {
     }
 
     @PostMapping("/park-car-in-past-by-number-of-minutes-from-now/{numberOfMinutesInThePast}")
-    public ResponseEntity<?> parkPassedInVehicle(@RequestBody ParkedCar carToPark,
-            @PathVariable("numberOfMinutesInThePast") int numberOfMinutesInThePast)
+    public ResponseEntity<?> parkPassedInVehicle(@RequestBody ParkedCar carToPark, @PathVariable("numberOfMinutesInThePast") int numberOfMinutesInThePast)
             throws NoAvailableCarSpaceException, RequiredValuesNotPassedInException, DuplicateCarException {
         carToPark.setTimeIn(LocalDateTime.now().minusMinutes(numberOfMinutesInThePast));
         ParkingResponse parkingResponse = carParkService.parkNewCar(carToPark);

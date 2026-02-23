@@ -6,7 +6,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
-public class CarPark {
+public class CarPark implements CarParkInterface {
     private Map<Integer, ParkedCar> carParkSpotMappedToParkedCar;
 
     public CarPark() {
@@ -19,10 +19,12 @@ public class CarPark {
         createNumberOfEmptyCarParksSpacesByPassedNumberOfSpacesRequestedToHold(numberOfParkingSpaces);
     }
 
+    @Override
     public Map<Integer, ParkedCar> getCarParkSpotMappedToParkedCar() {
         return carParkSpotMappedToParkedCar;
     }
 
+    @Override
     public void setCarParkSpotMappedToParkedCar(Map<Integer, ParkedCar> carParkSpotMappedToParkedCar) {
         this.carParkSpotMappedToParkedCar = carParkSpotMappedToParkedCar;
     }

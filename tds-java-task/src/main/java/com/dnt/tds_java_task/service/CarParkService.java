@@ -13,36 +13,34 @@ import com.dnt.tds_java_task.customexceptions.NoAvailableCarSpaceException;
 import com.dnt.tds_java_task.customexceptions.RequiredValuesNotPassedInException;
 import com.dnt.tds_java_task.customexceptions.VehicleNotFoundException;
 import com.dnt.tds_java_task.models.CarPark;
+import com.dnt.tds_java_task.models.CarParkInterface;
 import com.dnt.tds_java_task.models.ParkedCar;
 import com.dnt.tds_java_task.models.ParkingResponse;
 import com.dnt.tds_java_task.models.ParkingSpacesStatusResponse;
 
 @Component
-public class CarParkService {
-    private CarPark carPark;
+public class CarParkService implements CarParkServiceInterface {
+    private CarParkInterface carPark;
 
     public CarParkService() {
     }
 
     @Autowired
-    public CarParkService(CarPark carPark) {
+    public CarParkService(CarParkInterface carPark) {
         this.carPark = carPark;
     }
 
+    @Override
     public int getNumberOfAvailableCarParkSpaces() {
-        int available = 0;
-        for (int key : carPark.getCarParkSpotMappedToParkedCar().keySet()) {
-            if (carPark.getCarParkSpotMappedToParkedCar().get(key) == null) {
-                available++;
-            }
-        }
-        return available;
+        return (int) carPark.getCarParkSpotMappedToParkedCar().keySet().stream().filter(key -> carPark.getCarParkSpotMappedToParkedCar().get(key) == null).count();
     }
 
+    @Override
     public void resetCarPark() {
         carPark = new CarPark();
     }
 
+    @Override
     public void resetCarPark(int numberOfSpaces) throws RequiredValuesNotPassedInException {
         if (numberOfSpaces > 0 && numberOfSpaces < 100) {
             carPark = new CarPark(numberOfSpaces);
@@ -53,23 +51,23 @@ public class CarParkService {
 
     }
 
+    @Override
     public ParkingResponse parkNewCar(ParkedCar carToPark)
             throws NoAvailableCarSpaceException, RequiredValuesNotPassedInException, DuplicateCarException {
         if (carToPark != null && carToPark.getVehicleReg() != null && carToPark.getVehicleReg().length() >= 1
-                && carToPark.getVehicleReg().length() <= 8
-                && (carToPark.getVehicleType() >= 1 & carToPark.getVehicleType() <= 3)) {
-            checkIfCarIsNotAlreadyParked(carToPark.getVehicleReg());
-            int nextAvailableCarSpace = getNextAvailableCarSpace();
-            ParkedCar parkedCar = null;
-            if (carToPark.getTimeIn() != null) {
-                parkedCar = new ParkedCar(carToPark.getVehicleReg(), carToPark.getVehicleType(), carToPark.getTimeIn());
-            }
-            else {
-                parkedCar = new ParkedCar(carToPark.getVehicleReg(), carToPark.getVehicleType());
-            }
-            carPark.getCarParkSpotMappedToParkedCar().put(nextAvailableCarSpace, parkedCar);
+                && carToPark.getVehicleReg().length() <= 8 && (carToPark.getVehicleType() >= 1 & carToPark.getVehicleType() <= 3)) {
+            
+            if(!checkIfCarIsAlreadyParked(carToPark.getVehicleReg())) {
+                int nextAvailableCarSpace = getNextAvailableCarSpace();
+                
+                ParkedCar parkedCar = carToPark.getTimeIn() != null ? new ParkedCar(carToPark.getVehicleReg(), carToPark.getVehicleType(), carToPark.getTimeIn()) 
+                        : new ParkedCar(carToPark.getVehicleReg(), carToPark.getVehicleType());
+                
+                carPark.getCarParkSpotMappedToParkedCar().put(nextAvailableCarSpace, parkedCar);
 
-            return new ParkingResponse(parkedCar.getVehicleReg(), nextAvailableCarSpace + 1, parkedCar.getTimeIn());
+                return new ParkingResponse(parkedCar.getVehicleReg(), nextAvailableCarSpace + 1, parkedCar.getTimeIn());
+            }
+            throw new DuplicateCarException("A Car with this registration is already parked!");           
         }
         else {
             throw new RequiredValuesNotPassedInException(
@@ -77,18 +75,22 @@ public class CarParkService {
         }
     }
 
+    @Override
     public ParkingSpacesStatusResponse getNumberOfAvailableAndOccupiedParkingSpaces() {
         return new ParkingSpacesStatusResponse(getNumberOfAvailableCarParkSpaces(), getNumberOfOccupiedCarParkSpaces());
     }
 
+    @Override
     public ParkingResponse billCar(ParkedCar parkedCar)
             throws VehicleNotFoundException, RequiredValuesNotPassedInException {
         if (parkedCar.getVehicleReg() != null) {
+            
             int parkingSpot = getParkingSpotThatPassedInCarIsParkedIn(parkedCar);
             ParkedCar foundParkedCar = carPark.getCarParkSpotMappedToParkedCar().put(parkingSpot, null);
             LocalDateTime timeOut = LocalDateTime.now();
             BigDecimal vehicleCharge = calculateAccumulatedChargeForParking(foundParkedCar, timeOut);
             String billId = generateBillId(foundParkedCar);
+            
             return new ParkingResponse(billId, foundParkedCar.getVehicleReg(), vehicleCharge,
                     foundParkedCar.getTimeIn(), timeOut);
         }
@@ -96,12 +98,8 @@ public class CarParkService {
     }
 
     private int getNextAvailableCarSpace() throws NoAvailableCarSpaceException {
-        for (int key : carPark.getCarParkSpotMappedToParkedCar().keySet()) {
-            if (carPark.getCarParkSpotMappedToParkedCar().get(key) == null) {
-                return key;
-            }
-        }
-        throw new NoAvailableCarSpaceException("No Available Car Spaces");
+        return carPark.getCarParkSpotMappedToParkedCar().keySet().stream().filter(key -> carPark.getCarParkSpotMappedToParkedCar().get(key) == null).findFirst()
+                .orElseThrow(() -> new NoAvailableCarSpaceException("No Available Car Spaces"));
     }
 
     private int getNumberOfOccupiedCarParkSpaces() {
@@ -119,14 +117,9 @@ public class CarParkService {
         throw new VehicleNotFoundException("No parked car has this registration");
     }
 
-    private long getNumberOfMinutesBetweenCarBeingParkedAndItBeingBilled(ParkedCar carComingOut,
-            LocalDateTime timeOut) {
-        return ChronoUnit.MINUTES.between(carComingOut.getTimeIn(), timeOut);
-    }
-
     private BigDecimal calculateAccumulatedChargeForParking(ParkedCar carComingOut, LocalDateTime timeOut) {
         double chargeForParking = 0.00;
-        long numberOfMinutesSpent = getNumberOfMinutesBetweenCarBeingParkedAndItBeingBilled(carComingOut, timeOut);
+        long numberOfMinutesSpent = ChronoUnit.MINUTES.between(carComingOut.getTimeIn(), timeOut);
         if (numberOfMinutesSpent > 0) {
             int extraCharges = (int) (numberOfMinutesSpent / 5);
 
@@ -143,20 +136,17 @@ public class CarParkService {
             };
             chargeForParking = baseCharge + extraCharges;
         }
-
-        return BigDecimal.valueOf(chargeForParking).setScale(2);
+        
+        
+        return new BigDecimal(String.valueOf(chargeForParking)).setScale(2);
     }
 
     private String generateBillId(ParkedCar carComingOut) {
         return carComingOut.getVehicleReg() + carComingOut.getTimeIn().toInstant(ZoneOffset.UTC).toEpochMilli();
     }
 
-    private void checkIfCarIsNotAlreadyParked(String vehicleReg) throws DuplicateCarException {
-        for (int key : carPark.getCarParkSpotMappedToParkedCar().keySet()) {
-            ParkedCar carParkedInCurrentSpot = carPark.getCarParkSpotMappedToParkedCar().get(key);
-            if (carParkedInCurrentSpot != null && carParkedInCurrentSpot.getVehicleReg().equalsIgnoreCase(vehicleReg)) {
-                throw new DuplicateCarException("A Car with this registration is already parked!");
-            }
-        }
+    private boolean checkIfCarIsAlreadyParked(String vehicleReg) throws DuplicateCarException {
+        return carPark.getCarParkSpotMappedToParkedCar().keySet().stream()
+                .anyMatch(key -> carPark.getCarParkSpotMappedToParkedCar().get(key) != null && carPark.getCarParkSpotMappedToParkedCar().get(key).getVehicleReg().equalsIgnoreCase(vehicleReg));
     }
 }
