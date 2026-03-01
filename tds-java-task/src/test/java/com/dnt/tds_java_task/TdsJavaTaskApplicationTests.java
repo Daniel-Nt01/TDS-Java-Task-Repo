@@ -12,13 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 
-import com.dnt.tds_java_task.customexceptions.DuplicateCarException;
-import com.dnt.tds_java_task.customexceptions.NoAvailableCarSpaceException;
-import com.dnt.tds_java_task.customexceptions.RequiredValuesNotPassedInException;
-import com.dnt.tds_java_task.customexceptions.VehicleNotFoundException;
-import com.dnt.tds_java_task.models.ParkedCar;
-import com.dnt.tds_java_task.models.ParkingResponse;
-import com.dnt.tds_java_task.models.ParkingSpacesStatusResponse;
+import com.dnt.tds_java_task.dto.request.CarToRemoveRequest;
+import com.dnt.tds_java_task.dto.request.ParkedCarRequest;
+import com.dnt.tds_java_task.dto.response.ParkingResponse;
+import com.dnt.tds_java_task.dto.response.ParkingSpacesStatusResponse;
+import com.dnt.tds_java_task.exception.DuplicateCarException;
+import com.dnt.tds_java_task.exception.NoAvailableCarSpaceException;
+import com.dnt.tds_java_task.exception.VehicleNotFoundException;
 import com.dnt.tds_java_task.service.CarParkService;
 
 @SpringBootTest
@@ -35,14 +35,10 @@ class TdsJavaTaskApplicationTests {
 
     @Test
     void numberOfAvailableCarParkSpacesFoundViaCarParkServiceShouldBeTwoLess_AfterParkingTwoCars()
-            throws NoAvailableCarSpaceException, RequiredValuesNotPassedInException, DuplicateCarException {
-        ParkedCar parkedCar = new ParkedCar();
-        parkedCar.setVehicleReg("XXXXXX");
-        parkedCar.setVehicleType(1);
+            throws NoAvailableCarSpaceException, DuplicateCarException {
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 1, null);
 
-        ParkedCar parkedCar2 = new ParkedCar();
-        parkedCar2.setVehicleReg("XXXXX2");
-        parkedCar2.setVehicleType(1);
+        ParkedCarRequest parkedCar2 = new ParkedCarRequest("XXXXXX2", 1, null);
 
         int numberOfAvailableSpaces = carParkService.getNumberOfAvailableCarParkSpaces();
         assertEquals(numberOfAvailableSpaces, 30);
@@ -55,28 +51,25 @@ class TdsJavaTaskApplicationTests {
 
     @Test
     void throwRequiredValuesNotPassedInExceptionWhenAttemptingToParkWithACarWithNoReg() {
-        ParkedCar parkedCar = new ParkedCar();
-        parkedCar.setVehicleType(1);
+        ParkedCarRequest parkedCar = new ParkedCarRequest(null, 1, null);
 
         try {
             carParkService.parkNewCar(parkedCar);
         }
         catch (Exception e) {
-            assertTrue(e instanceof RequiredValuesNotPassedInException);
+            assertTrue(e instanceof IllegalArgumentException);
         }
     }
 
     @Test
     void throwDuplicateCarExceptionWhenAttemptingToParkWithACarRegistrationThatIsAlreadyParked() {
-        ParkedCar parkedCar = new ParkedCar();
-        parkedCar.setVehicleReg("XXXXXX");
-        parkedCar.setVehicleType(1);
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 1, null);
 
-        ParkedCar parkedCar2 = parkedCar;
-        parkedCar2.setVehicleType(3);
+        ParkedCarRequest parkedCar2 = new ParkedCarRequest(parkedCar.vehicleReg(), 3, null);
 
         try {
             carParkService.parkNewCar(parkedCar);
+            carParkService.parkNewCar(parkedCar2);
         }
         catch (Exception e) {
             assertTrue(e instanceof DuplicateCarException);
@@ -85,10 +78,8 @@ class TdsJavaTaskApplicationTests {
 
     @Test
     void parkedResponseShouldBeReturnedWithATimeInDate_VehicleReg_SpaceNumber_WhenACarIsParked()
-            throws NoAvailableCarSpaceException, RequiredValuesNotPassedInException, DuplicateCarException {
-        ParkedCar parkedCar = new ParkedCar();
-        parkedCar.setVehicleReg("XXXXXX");
-        parkedCar.setVehicleType(1);
+            throws NoAvailableCarSpaceException, DuplicateCarException {
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 1, null);
 
         Object object = carParkService.parkNewCar(parkedCar);
 
@@ -96,9 +87,9 @@ class TdsJavaTaskApplicationTests {
 
         ParkingResponse parkingResponse = (ParkingResponse) object;
 
-        assertNotNull(parkingResponse.getVehicleReg());
-        assertNotNull(parkingResponse.getTimeIn());
-        assertEquals(parkingResponse.getSpaceNumber(), 1);
+        assertNotNull(parkingResponse.vehicleReg());
+        assertNotNull(parkingResponse.timeIn());
+        assertEquals(parkingResponse.spaceNumber(), 1);
     }
 
     @Test
@@ -117,15 +108,14 @@ class TdsJavaTaskApplicationTests {
         ParkingSpacesStatusResponse parkingSpacesStatusResponse = carParkService
                 .getNumberOfAvailableAndOccupiedParkingSpaces();
 
-        assertEquals(parkingSpacesStatusResponse.getAvailableSpaces(), 30);
-        assertEquals(parkingSpacesStatusResponse.getOccupiedSpaces(), 0);
+        assertEquals(parkingSpacesStatusResponse.availableSpaces(), 30);
+        assertEquals(parkingSpacesStatusResponse.occupiedSpaces(), 0);
 
     }
 
     @Test
     void throwVehicleNotFoundExceptionWhenAttemptingToBillACarThatIsNotParked() {
-        ParkedCar parkedCar = new ParkedCar();
-        parkedCar.setVehicleReg("XXXXXX");
+        CarToRemoveRequest parkedCar = new CarToRemoveRequest("XXXXXX");
 
         try {
             carParkService.billCar(parkedCar);
@@ -136,100 +126,89 @@ class TdsJavaTaskApplicationTests {
     }
 
     @Test
-    void throwRequiredValuesNotPassedInExceptionWhenAttemptingToBillACarWithoutPassingInARegistration() {
-        ParkedCar parkedCar = new ParkedCar();
-
-        try {
-            carParkService.billCar(parkedCar);
-        }
-        catch (Exception e) {
-            assertTrue(e instanceof RequiredValuesNotPassedInException);
-        }
-    }
-
-    @Test
-    void parkedResponseReturnedFromBillCarWhenUsingAParkedCar_ShouldNotBeNull() throws NoAvailableCarSpaceException,
-            RequiredValuesNotPassedInException, VehicleNotFoundException, DuplicateCarException {
-        ParkedCar parkedCar = new ParkedCar();
-        parkedCar.setVehicleReg("XXXXXX");
-        parkedCar.setVehicleType(1);
+    void parkedResponseReturnedFromBillCarWhenUsingAParkedCar_ShouldNotBeNull() throws NoAvailableCarSpaceException, VehicleNotFoundException, DuplicateCarException {
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 1, null);
 
         carParkService.parkNewCar(parkedCar);
-        ParkingResponse parkingResponse = carParkService.billCar(parkedCar);
+        CarToRemoveRequest carToRemove = new CarToRemoveRequest("XXXXXX");
+        ParkingResponse parkingResponse = carParkService.billCar(carToRemove);
 
         assertNotNull(parkingResponse);
     }
 
     @Test
     void parkedResponseReturnedFromBillCarWhenUsingAParkedCar_ShouldHaveNonNullValuesForExpectedAttributesWhenParkedForAMinute()
-            throws NoAvailableCarSpaceException, RequiredValuesNotPassedInException, VehicleNotFoundException,
+            throws NoAvailableCarSpaceException, VehicleNotFoundException,
             DuplicateCarException {
-        ParkedCar parkedCar = new ParkedCar("XXXXXX", 1, LocalDateTime.now().minusMinutes(1));
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 1, LocalDateTime.now().minusMinutes(1));
 
         carParkService.parkNewCar(parkedCar);
-        ParkingResponse parkingResponse = carParkService.billCar(parkedCar);
+        
+        CarToRemoveRequest carToRemove = new CarToRemoveRequest(parkedCar.vehicleReg());
+        ParkingResponse parkingResponse = carParkService.billCar(carToRemove);
 
-        assertNotNull(parkingResponse.getBillId());
-        assertNotNull(parkingResponse.getVehicleReg());
-        assertNotNull(parkingResponse.getVehicleCharge());
-        assertNotNull(parkingResponse.getTimeIn());
-        assertNotNull(parkingResponse.getTimeOut());
+        assertNotNull(parkingResponse.billId());
+        assertNotNull(parkingResponse.vehicleReg());
+        assertNotNull(parkingResponse.vehicleCharge());
+        assertNotNull(parkingResponse.timeIn());
+        assertNotNull(parkingResponse.timeOut());
     }
 
     @Test
     void parkedResponseReturnedFromBillCarWhenUsingASmallParkedCar_ShouldHaveAChargeOfThreeWhenParkedForTenMinutes()
-            throws NoAvailableCarSpaceException, RequiredValuesNotPassedInException, VehicleNotFoundException,
+            throws NoAvailableCarSpaceException, VehicleNotFoundException,
             DuplicateCarException {
-        ParkedCar parkedCar = new ParkedCar("XXXXXX", 1, LocalDateTime.now().minusMinutes(10));
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 1, LocalDateTime.now().minusMinutes(10));
 
         carParkService.parkNewCar(parkedCar);
-        ParkingResponse parkingResponse = carParkService.billCar(parkedCar);
+        
+        CarToRemoveRequest carToRemove = new CarToRemoveRequest(parkedCar.vehicleReg());
+        ParkingResponse parkingResponse = carParkService.billCar(carToRemove);
 
-        assertEquals(parkingResponse.getVehicleCharge(), new BigDecimal("3.00"));
+        assertEquals(parkingResponse.vehicleCharge(), new BigDecimal("3.00"));
     }
 
     @Test
     void parkedResponseReturnedFromBillCarWhenUsingAMediumParkedCar_ShouldHaveAChargeOfFourWhenParkedForTenMinutes()
-            throws NoAvailableCarSpaceException, RequiredValuesNotPassedInException, VehicleNotFoundException,
+            throws NoAvailableCarSpaceException, VehicleNotFoundException,
             DuplicateCarException {
-        ParkedCar parkedCar = new ParkedCar("XXXXXX", 2, LocalDateTime.now().minusMinutes(10));
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 2, LocalDateTime.now().minusMinutes(10));
 
         carParkService.parkNewCar(parkedCar);
-        ParkingResponse parkingResponse = carParkService.billCar(parkedCar);
+        CarToRemoveRequest carToRemove = new CarToRemoveRequest(parkedCar.vehicleReg());
+        ParkingResponse parkingResponse = carParkService.billCar(carToRemove);
 
-        assertEquals(parkingResponse.getVehicleCharge(), new BigDecimal("4.00"));
+        assertEquals(parkingResponse.vehicleCharge(), new BigDecimal("4.00"));
     }
 
     @Test
     void parkedResponseReturnedFromBillCarWhenUsingALargeParkedCar_ShouldHaveAChargeOfSixWhenParkedForTenMinutes()
-            throws NoAvailableCarSpaceException, RequiredValuesNotPassedInException, VehicleNotFoundException,
+            throws NoAvailableCarSpaceException, VehicleNotFoundException,
             DuplicateCarException {
-        ParkedCar parkedCar = new ParkedCar("XXXXXX", 3, LocalDateTime.now().minusMinutes(10));
-
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 3, LocalDateTime.now().minusMinutes(10));
         carParkService.parkNewCar(parkedCar);
-        ParkingResponse parkingResponse = carParkService.billCar(parkedCar);
+        
+        CarToRemoveRequest carToRemove = new CarToRemoveRequest(parkedCar.vehicleReg());
+        ParkingResponse parkingResponse = carParkService.billCar(carToRemove);
 
-        assertEquals(parkingResponse.getVehicleCharge(), new BigDecimal("6.00"));
+        assertEquals(parkingResponse.vehicleCharge(), new BigDecimal("6.00"));
     }
 
     @Test
     void numberOfAvailableCarParkSpacesFoundViaCarParkServiceShouldBeOneLessFromTheOriginal_AfterParkingTwoCarsAndHavingOneOfThemBilled()
-            throws NoAvailableCarSpaceException, RequiredValuesNotPassedInException, VehicleNotFoundException,
+            throws NoAvailableCarSpaceException, VehicleNotFoundException,
             DuplicateCarException {
-        ParkedCar parkedCar = new ParkedCar();
-        parkedCar.setVehicleReg("XXXXXX");
-        parkedCar.setVehicleType(1);
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 1, LocalDateTime.now());
 
-        ParkedCar parkedCar2 = new ParkedCar();
-        parkedCar2.setVehicleReg("XXXXX2");
-        parkedCar2.setVehicleType(2);
+        ParkedCarRequest parkedCar2 = new ParkedCarRequest("XXXXXX2", 2, LocalDateTime.now());
 
         int numberOfAvailableSpaces = carParkService.getNumberOfAvailableCarParkSpaces();
         assertEquals(numberOfAvailableSpaces, 30);
         carParkService.parkNewCar(parkedCar);
         carParkService.parkNewCar(parkedCar2);
 
-        carParkService.billCar(parkedCar);
+        CarToRemoveRequest carToRemove = new CarToRemoveRequest(parkedCar.vehicleReg());
+        carParkService.billCar(carToRemove);
         numberOfAvailableSpaces = carParkService.getNumberOfAvailableCarParkSpaces();
         assertEquals(numberOfAvailableSpaces, 29);
     }

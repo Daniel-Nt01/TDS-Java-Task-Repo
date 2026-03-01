@@ -6,9 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-import com.dnt.tds_java_task.customexceptions.RequiredValuesNotPassedInException;
-import com.dnt.tds_java_task.models.CarPark;
-import com.dnt.tds_java_task.models.ParkedCar;
+import com.dnt.tds_java_task.dto.request.ParkedCarRequest;
+import com.dnt.tds_java_task.exception.NoAvailableCarSpaceException;
+import com.dnt.tds_java_task.repository.CarParkRepo;
 
 public class ServicesTest {
 
@@ -20,7 +20,7 @@ public class ServicesTest {
 
     @Test
     void carParkServiceShouldNotBeNull_WhenUsingConstructorWithPassedInValue() {
-        CarParkService carParkService = new CarParkService(new CarPark());
+        CarParkService carParkService = new CarParkService(new CarParkRepo());
         assertNotNull(carParkService);
     }
 
@@ -32,31 +32,27 @@ public class ServicesTest {
     }
 
     @Test
-    void carParkServiceShouldHaveANumberOfAvailableSpaceEqualingThePassedInNumberOfSpaces_AfterCallingTheResetCarParkMethodPassingInNumberOfSpaces()
-            throws RequiredValuesNotPassedInException {
+    void carParkServiceShouldHaveANumberOfAvailableSpaceEqualingThePassedInNumberOfSpaces_AfterCallingTheResetCarParkMethodPassingInNumberOfSpaces(){
         CarParkService carParkService = new CarParkService();
-        carParkService.resetCarPark(80);
+        carParkService.resetCarParkWithNumberOfSpaces(80);
         assertEquals(carParkService.getNumberOfAvailableCarParkSpaces(), 80);
     }
 
     @Test
-    void throwNoAvailableCarSpaceExceptionWhenAttemptingToParkWithACarWithNoReg()
-            throws RequiredValuesNotPassedInException {
+    void throwNoAvailableCarSpaceExceptionWhenAttemptingToParkWhenAlreadyFull(){
         CarParkService carParkService = new CarParkService();
-        carParkService.resetCarPark(1);
-        ParkedCar parkedCar = new ParkedCar();
-        parkedCar.setVehicleReg("XXXXXX");
-        parkedCar.setVehicleType(1);
+        carParkService.resetCarParkWithNumberOfSpaces(1);
+        ParkedCarRequest parkedCar = new ParkedCarRequest("XXXXXX", 1, null);
 
-        ParkedCar parkedCar2 = new ParkedCar();
-        parkedCar2.setVehicleReg("XXXXX2");
-        parkedCar.setVehicleType(1);
+        ParkedCarRequest parkedCar2 = new ParkedCarRequest("XXXXXX2", 1, null);
 
         try {
             carParkService.parkNewCar(parkedCar);
+            assertEquals(carParkService.getNumberOfAvailableCarParkSpaces(), 0);
+            carParkService.parkNewCar(parkedCar2);
         }
         catch (Exception e) {
-            assertTrue(e instanceof RequiredValuesNotPassedInException);
+            assertTrue(e instanceof NoAvailableCarSpaceException);
         }
     }
 }
