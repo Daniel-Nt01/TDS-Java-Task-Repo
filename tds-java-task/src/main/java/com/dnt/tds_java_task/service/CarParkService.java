@@ -7,7 +7,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import com.dnt.tds_java_task.dto.request.CarToRemoveRequest;
 import com.dnt.tds_java_task.dto.request.ParkedCarRequest;
@@ -18,7 +18,7 @@ import com.dnt.tds_java_task.exception.VehicleNotFoundException;
 import com.dnt.tds_java_task.repository.CarPark;
 import com.dnt.tds_java_task.repository.CarParkRepo;
 
-@Component
+@Service
 public class CarParkService implements ParkingService {
     private CarPark carPark;
 

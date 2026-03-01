@@ -19,37 +19,42 @@ import jakarta.validation.Valid;
 
 @RestController
 public class ParkingController {
+    
+    private ParkingService parkingService;
+    
     @Autowired
-    private ParkingService carParkService;
+    public ParkingController(ParkingService parkingService) {
+        this.parkingService = parkingService;
+    }
 
     @PutMapping("/reset")
-    public ResponseEntity<?> resetCarPark() {
-        carParkService.resetCarPark();
+    public ResponseEntity<String> resetCarPark() {
+        parkingService.resetCarPark();
         return ResponseEntity.ok("Car Park reset to empty and default size");
     }
 
     @PutMapping("/reset/{numberOfSpaces}")
-    public ResponseEntity<?> resetCarParkAssigningNumberOfSpacesByPassedInValue( @PathVariable("numberOfSpaces") int numberOfSpaces) {
-        carParkService.resetCarParkWithNumberOfSpaces(numberOfSpaces);
+    public ResponseEntity<String> resetCarParkAssigningNumberOfSpacesByPassedInValue( @PathVariable("numberOfSpaces") int numberOfSpaces) {
+        parkingService.resetCarParkWithNumberOfSpaces(numberOfSpaces);
         return ResponseEntity.ok("Car Park reset to empty and number of parking spaces is set to : " + numberOfSpaces);
     }
 
     @GetMapping("/parking")
-    public ResponseEntity<?> getNumberOfAvailableAndFullCarSpaces() {
-        ParkingSpacesStatusResponse parkingSpacesStatusResponse = carParkService
+    public ResponseEntity<ParkingSpacesStatusResponse> getNumberOfAvailableAndFullCarSpaces() {
+        ParkingSpacesStatusResponse parkingSpacesStatusResponse = parkingService
                 .getNumberOfAvailableAndOccupiedParkingSpaces();
         return ResponseEntity.ok(parkingSpacesStatusResponse);
     }
 
     @PostMapping("/parking")
-    public ResponseEntity<?> parkPassedInVehicle(@Valid @RequestBody ParkedCarRequest carToPark) {
-        ParkingResponse parkingResponse = carParkService.parkNewCar(carToPark);
+    public ResponseEntity<ParkingResponse> parkPassedInVehicle(@Valid @RequestBody ParkedCarRequest carToPark) {
+        ParkingResponse parkingResponse = parkingService.parkNewCar(carToPark);
         return ResponseEntity.ok(parkingResponse);
     }
 
     @PostMapping("/parking/bill")
-    public ResponseEntity<?> removeParkedVehicleAndBill(@Valid @RequestBody CarToRemoveRequest carToRemove) {
-        ParkingResponse parkingResponse = carParkService.billCar(carToRemove);
+    public ResponseEntity<ParkingResponse> removeParkedVehicleAndBill(@Valid @RequestBody CarToRemoveRequest carToRemove) {
+        ParkingResponse parkingResponse = parkingService.billCar(carToRemove);
         return ResponseEntity.ok(parkingResponse);
     }
 }
